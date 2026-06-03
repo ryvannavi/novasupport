@@ -19,8 +19,4 @@ A full-stack customer support system built for a tech company, featuring AI-gene
 - FAQ knowledge base with live search
 - Customer star ratings
 
-## Live Demo
-🔗 Coming soon (Railway deployment)
-
-
 Made by [Navi](https://github.com/ryvannavi)
