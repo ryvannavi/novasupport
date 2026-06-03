@@ -1,9 +1,12 @@
 FROM php:8.3-cli
 
 RUN apt-get update && apt-get install -y \
-    curl zip unzip git nodejs npm \
+    curl zip unzip git \
     libsqlite3-dev \
-    && docker-php-ext-install pdo pdo_sqlite mbstring
+    libonig-dev \
+    libxml2-dev \
+    nodejs npm \
+    && docker-php-ext-install pdo pdo_sqlite mbstring xml
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
