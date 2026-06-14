@@ -13,9 +13,12 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /app
 COPY . .
 
-RUN composer install --no-dev --optimize-autoloader
+RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
 RUN npm install && npm run build
-RUN php artisan key:generate
+RUN cp .env.example .env
+RUN php artisan key:generate --force
+RUN touch database/database.sqlite
+RUN php artisan migrate --force
 RUN php artisan config:clear
 
 EXPOSE 8080
