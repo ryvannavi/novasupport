@@ -50,6 +50,45 @@
         @keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.2);} }
         @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(400px); opacity: 0; } }
+
+        /* ============ RESPONSIVE (mobile / tablet) ============ */
+        .nova-burger { display:none; width:38px; height:38px; border-radius:99px; border:1px solid #e2e8f0; background:rgba(255,255,255,0.9); color:#334155; font-size:15px; cursor:pointer; align-items:center; justify-content:center; transition:all 0.2s; flex-shrink:0; }
+        .nova-burger:hover { border-color:#6366f1; color:#6366f1; }
+        .nova-mobile-menu { display:none; margin-top:10px; background:rgba(255,255,255,0.96); backdrop-filter:blur(16px); border:1px solid rgba(220,220,255,0.7); border-radius:20px; box-shadow:0 12px 40px rgba(99,102,241,0.12); padding:8px; animation:navSlideDown 0.25s ease both; }
+        .nova-mobile-menu.open { display:block; }
+        .nova-mobile-link { display:flex; align-items:center; gap:10px; padding:13px 16px; font-size:14px; color:#334155; text-decoration:none; border-radius:14px; font-weight:500; background:none; border:none; width:100%; text-align:left; cursor:pointer; font-family:inherit; }
+        .nova-mobile-link:active, .nova-mobile-link:hover { background:#f5f3ff; color:#6366f1; }
+        .nova-mobile-link i { width:18px; text-align:center; color:#6366f1; font-size:13px; }
+        .nova-mobile-cta { display:flex; align-items:center; justify-content:center; gap:8px; margin:8px; padding:13px; border-radius:14px; background:#1e1b4b; color:#fff; font-size:14px; font-weight:600; text-decoration:none; }
+
+        @media (max-width: 920px) {
+            .nova-nav-links { display:none; }
+            .nova-user { display:none; }
+            .nova-burger { display:inline-flex; }
+            .nova-logo-sep, .nova-logo-sub { display:none; }
+        }
+        @media (max-width: 640px) {
+            .nova-nav-right .btn-nova { display:none; }        /* CTA moves into mobile menu */
+            .nova-nav-right form { display:none !important; }  /* Log out moves into mobile menu */
+            .nova-nav-pill { padding:8px 12px; }
+            .nova-logo { font-size:16px; }
+            #notifDropdown { position:fixed !important; top:70px !important; left:12px !important; right:12px !important; width:auto !important; }
+        }
+
+        /* Stack ALL inline grids on small screens (works with inline styles via !important) */
+        @media (max-width: 900px) {
+            div[style*="grid-template-columns:repeat(4"], div[style*="grid-template-columns: repeat(4"],
+            div[style*="grid-template-columns:repeat(3"], div[style*="grid-template-columns: repeat(3"] {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+        }
+        @media (max-width: 640px) {
+            div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+            body { -webkit-text-size-adjust: 100%; }
+            input, select, textarea { font-size:16px !important; } /* stops iPhone auto-zoom on tap */
+            h1, div[style*="font-size:44px"], div[style*="font-size:40px"], div[style*="font-size:38px"] { font-size:30px !important; line-height:1.2 !important; }
+            div[style*="font-size:34px"], div[style*="font-size:32px"] { font-size:26px !important; }
+        }
     </style>
 </head>
 <body>
@@ -170,7 +209,42 @@
                             <span><i class="fa-regular fa-envelope"></i> Get Started</span>
                         </a>
                     @endauth
+
+                    {{-- HAMBURGER (mobile only) --}}
+                    <button type="button" class="nova-burger" id="novaBurger" onclick="toggleMobileMenu()" aria-label="Menu">
+                        <i class="fa-solid fa-bars" id="burgerIcon"></i>
+                    </button>
                 </div>
+            </div>
+
+            {{-- MOBILE MENU --}}
+            <div class="nova-mobile-menu" id="novaMobileMenu">
+                @auth
+                    <div style="padding:12px 16px 8px; font-size:12px; color:#94a3b8; font-weight:600;">
+                        <i class="fa-regular fa-user" style="margin-right:6px;"></i>{{ auth()->user()->name }}
+                    </div>
+                    @if(auth()->user()->is_admin)
+                        <a href="{{ route('admin.index') }}" class="nova-mobile-link"><i class="fa-solid fa-shield-halved"></i> Admin Panel</a>
+                        <a href="{{ route('admin.analytics') }}" class="nova-mobile-link"><i class="fa-solid fa-chart-line"></i> Analytics</a>
+                        <a href="{{ route('admin.faq.index') }}" class="nova-mobile-link"><i class="fa-solid fa-book-open"></i> Manage FAQ</a>
+                    @else
+                        <a href="{{ url('/') }}" class="nova-mobile-link"><i class="fa-solid fa-house"></i> Home</a>
+                        <a href="{{ route('tickets.index') }}" class="nova-mobile-link"><i class="fa-regular fa-folder-open"></i> My Requests</a>
+                        <a href="{{ route('faq.index') }}" class="nova-mobile-link"><i class="fa-regular fa-circle-question"></i> FAQ</a>
+                        <a href="{{ route('contact') }}" class="nova-mobile-link"><i class="fa-regular fa-envelope"></i> Contact</a>
+                        <a href="{{ route('tickets.create') }}" class="nova-mobile-cta"><i class="fa-regular fa-envelope"></i> Submit Request</a>
+                    @endif
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="nova-mobile-link"><i class="fa-solid fa-arrow-right-from-bracket"></i> Log out</button>
+                    </form>
+                @else
+                    <a href="{{ url('/') }}" class="nova-mobile-link"><i class="fa-solid fa-house"></i> Home</a>
+                    <a href="{{ route('faq.index') }}" class="nova-mobile-link"><i class="fa-regular fa-circle-question"></i> FAQ</a>
+                    <a href="{{ route('contact') }}" class="nova-mobile-link"><i class="fa-regular fa-envelope"></i> Contact</a>
+                    <a href="{{ route('login') }}" class="nova-mobile-link"><i class="fa-solid fa-arrow-right-to-bracket"></i> Sign in</a>
+                    <a href="{{ route('register') }}" class="nova-mobile-cta"><i class="fa-regular fa-envelope"></i> Get Started</a>
+                @endauth
             </div>
         </div>
     </div>
@@ -181,6 +255,22 @@
 
     <script>
         const AJAX_CONTENT = document.getElementById('ajaxContent');
+
+        // Mobile hamburger menu
+        function toggleMobileMenu() {
+            const m = document.getElementById('novaMobileMenu');
+            const icon = document.getElementById('burgerIcon');
+            m.classList.toggle('open');
+            icon.className = m.classList.contains('open') ? 'fa-solid fa-xmark' : 'fa-solid fa-bars';
+        }
+        document.addEventListener('click', function(e) {
+            const m = document.getElementById('novaMobileMenu');
+            const b = document.getElementById('novaBurger');
+            if (m && m.classList.contains('open') && !m.contains(e.target) && !b.contains(e.target)) {
+                m.classList.remove('open');
+                document.getElementById('burgerIcon').className = 'fa-solid fa-bars';
+            }
+        });
 
         // Stars
         const sc = document.getElementById('novaStars');
