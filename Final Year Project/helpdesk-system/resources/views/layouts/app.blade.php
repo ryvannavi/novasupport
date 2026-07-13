@@ -54,8 +54,8 @@
         /* ============ RESPONSIVE (mobile / tablet) ============ */
         .nova-burger { display:none; width:38px; height:38px; border-radius:99px; border:1px solid #e2e8f0; background:rgba(255,255,255,0.9); color:#334155; font-size:15px; cursor:pointer; align-items:center; justify-content:center; transition:all 0.2s; flex-shrink:0; }
         .nova-burger:hover { border-color:#6366f1; color:#6366f1; }
-        .nova-mobile-menu { display:none; margin-top:10px; background:rgba(255,255,255,0.96); backdrop-filter:blur(16px); border:1px solid rgba(220,220,255,0.7); border-radius:20px; box-shadow:0 12px 40px rgba(99,102,241,0.12); padding:8px; animation:navSlideDown 0.25s ease both; }
-        .nova-mobile-menu.open { display:block; }
+        .nova-mobile-menu { display:block; overflow:hidden; max-height:0; opacity:0; transform:translateY(-10px); margin-top:0; padding:0 8px; background:rgba(255,255,255,0.96); backdrop-filter:blur(16px); border:1px solid transparent; border-radius:20px; box-shadow:0 12px 40px rgba(99,102,241,0); transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease, transform 0.4s cubic-bezier(0.34,1.4,0.64,1), margin-top 0.3s ease, padding 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease; }
+        .nova-mobile-menu.open { max-height:560px; opacity:1; transform:translateY(0); margin-top:10px; padding:8px; border-color:rgba(220,220,255,0.7); box-shadow:0 12px 40px rgba(99,102,241,0.12); }
         .nova-mobile-link { display:flex; align-items:center; gap:10px; padding:13px 16px; font-size:14px; color:#334155; text-decoration:none; border-radius:14px; font-weight:500; background:none; border:none; width:100%; text-align:left; cursor:pointer; font-family:inherit; }
         .nova-mobile-link:active, .nova-mobile-link:hover { background:#f5f3ff; color:#6366f1; }
         .nova-mobile-link i { width:18px; text-align:center; color:#6366f1; font-size:13px; }

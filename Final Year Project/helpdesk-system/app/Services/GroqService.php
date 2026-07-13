@@ -3,11 +3,12 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use App\Models\Ticket;
 
 class GroqService
 {
-    protected string $apiKey;
+    protected ?string $apiKey;
     protected string $model = 'llama-3.3-70b-versatile';
 
     public function __construct()
@@ -18,9 +19,16 @@ class GroqService
     /**
      * Generate a smart AI reply using the FULL conversation history of the ticket.
      * The AI decides greeting, tone, and closing by itself.
+     * NEVER throws: if the API key is missing or Groq fails, a friendly
+     * fallback reply is returned so ticket submission always succeeds.
      */
     public function replyToTicket(Ticket $ticket): string
     {
+        if (empty($this->apiKey)) {
+            Log::warning('GroqService: GROQ_API_KEY is not set — using fallback reply.');
+            return $this->fallbackReply($ticket);
+        }
+
         $firstName = explode(' ', $ticket->user->name ?? 'there')[0];
 
         // Build the conversation history as a chat
@@ -54,26 +62,47 @@ class GroqService
             . "- If the issue is NOT yet solved, do NOT add a signature — just reply conversationally, like a live chat.\n"
             . "- Never make up features, links, or emails that were not mentioned. For password resets, account issues, or billing, guide them through realistic general steps.";
 
-        $response = Http::timeout(30)->withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Content-Type'  => 'application/json',
-        ])->post('https://api.groq.com/openai/v1/chat/completions', [
-            'model'      => $this->model,
-            'messages'   => array_merge([['role' => 'system', 'content' => $system]], $chat),
-            'max_tokens' => 300,
-        ]);
+        try {
+            $response = Http::timeout(30)->withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type'  => 'application/json',
+            ])->post('https://api.groq.com/openai/v1/chat/completions', [
+                'model'      => $this->model,
+                'messages'   => array_merge([['role' => 'system', 'content' => $system]], $chat),
+                'max_tokens' => 300,
+            ]);
 
-        if (!$response->successful()) {
-            throw new \Exception('Groq API error: ' . $response->status() . ' ' . $response->body());
+            if (!$response->successful()) {
+                Log::error('Groq API error: ' . $response->status() . ' ' . $response->body());
+                return $this->fallbackReply($ticket);
+            }
+
+            $reply = $response->json('choices.0.message.content');
+
+            if (!$reply) {
+                Log::error('Groq returned empty reply: ' . $response->body());
+                return $this->fallbackReply($ticket);
+            }
+
+            return trim($reply);
+        } catch (\Throwable $e) {
+            Log::error('GroqService exception: ' . $e->getMessage());
+            return $this->fallbackReply($ticket);
         }
+    }
 
-        $reply = $response->json('choices.0.message.content');
+    /**
+     * Friendly reply used when the AI is unavailable, so the customer
+     * always gets an instant acknowledgement and the app never crashes.
+     */
+    protected function fallbackReply(Ticket $ticket): string
+    {
+        $firstName = explode(' ', $ticket->user->name ?? 'there')[0];
 
-        if (!$reply) {
-            throw new \Exception('Groq returned empty reply: ' . $response->body());
-        }
-
-        return trim($reply);
+        return "Hello {$firstName},\n\n"
+            . "Thanks for contacting NovaSupport. We've received your request about \"{$ticket->title}\" "
+            . "and our support team is looking into it. We'll get back to you here with more details as soon as possible.\n\n"
+            . "Best regards,\nNovaSupport Team";
     }
 
     /**
@@ -88,18 +117,27 @@ class GroqService
             }
         }
 
-        $response = Http::timeout(30)->withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Content-Type'  => 'application/json',
-        ])->post('https://api.groq.com/openai/v1/chat/completions', [
-            'model'    => $this->model,
-            'messages' => [
-                ['role' => 'system', 'content' => 'You are a customer support agent for NovaSupport. Write a professional, friendly, concise reply. Under 100 words.'],
-                ['role' => 'user', 'content' => "Ticket Title: {$ticketTitle}\n\nCustomer Issue: {$ticketDescription}"],
-            ],
-            'max_tokens' => 250,
-        ]);
+        if (empty($this->apiKey)) {
+            return 'Thanks for contacting NovaSupport. Our team has received your request and will reply shortly.';
+        }
 
-        return $response->json('choices.0.message.content') ?? 'Unable to generate reply.';
+        try {
+            $response = Http::timeout(30)->withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type'  => 'application/json',
+            ])->post('https://api.groq.com/openai/v1/chat/completions', [
+                'model'    => $this->model,
+                'messages' => [
+                    ['role' => 'system', 'content' => 'You are a customer support agent for NovaSupport. Write a professional, friendly, concise reply. Under 100 words.'],
+                    ['role' => 'user', 'content' => "Ticket Title: {$ticketTitle}\n\nCustomer Issue: {$ticketDescription}"],
+                ],
+                'max_tokens' => 250,
+            ]);
+
+            return $response->json('choices.0.message.content') ?? 'Unable to generate reply.';
+        } catch (\Throwable $e) {
+            Log::error('GroqService exception: ' . $e->getMessage());
+            return 'Thanks for contacting NovaSupport. Our team has received your request and will reply shortly.';
+        }
     }
 }

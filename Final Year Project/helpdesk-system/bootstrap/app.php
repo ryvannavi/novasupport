@@ -11,6 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Trust Render's load balancer so Laravel knows the site is HTTPS.
+        // Without this, generated URLs are http:// and browsers block the
+        // AJAX requests as mixed content (buttons appear "dead" in production).
+        $middleware->trustProxies(at: '*');
+
         $middleware->alias([
             'is_admin' => \App\Http\Middleware\IsAdmin::class,
         ]);
