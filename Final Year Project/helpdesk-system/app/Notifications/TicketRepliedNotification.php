@@ -19,12 +19,19 @@ class TicketRepliedNotification extends Notification
 
     public function toDatabase(object $notifiable): array
     {
+        $isAdmin = (bool) ($notifiable->is_admin ?? false);
+        $customerName = $this->ticket->user->name ?? 'A customer';
+
         return [
             'ticket_id' => $this->ticket->id,
             'title' => $this->ticket->title,
-            'message' => "Your support request '{$this->ticket->title}' has received a reply!",
+            'message' => $isAdmin
+                ? "{$customerName} replied to '{$this->ticket->title}'"
+                : "Your support request '{$this->ticket->title}' has received a reply!",
             'type' => 'ticket_replied',
-            'url' => '/tickets/' . $this->ticket->id,
+            'url' => $isAdmin
+                ? '/admin/tickets/' . $this->ticket->id
+                : '/tickets/' . $this->ticket->id,
         ];
     }
 }

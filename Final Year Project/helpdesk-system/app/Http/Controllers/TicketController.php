@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\GroqService;
 use App\Notifications\NewTicketNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class TicketController extends Controller
 {
@@ -16,7 +17,7 @@ class TicketController extends Controller
         if (request()->has('ajax')) {
             return view('tickets.create')->render();
         }
-        
+
         return view('tickets.create');
     }
 
@@ -34,15 +35,10 @@ class TicketController extends Controller
             'status' => 'open',
         ]);
 
-        // Generate AI reply automatically
+        // Generate AI reply automatically (with full context)
         try {
             $groq = new GroqService();
-            $aiReply = $groq->generateReply(
-                $ticket->title, 
-                $ticket->description,
-                auth()->user()->name,
-                $ticket->id  // Pass ticket ID to check if first message
-            );
+            $aiReply = $groq->replyToTicket($ticket);
 
             Message::create([
                 'ticket_id' => $ticket->id,
@@ -53,7 +49,7 @@ class TicketController extends Controller
                 'sender_type' => 'ai',
             ]);
         } catch (\Exception $e) {
-            // AI failed silently
+            Log::error('AI reply failed on ticket create: ' . $e->getMessage());
         }
 
         // Notify all admins
@@ -63,7 +59,7 @@ class TicketController extends Controller
                 $admin->notify(new NewTicketNotification($ticket));
             }
         } catch (\Exception $e) {
-            // Notification failed silently
+            Log::error('Admin notification failed: ' . $e->getMessage());
         }
 
         return redirect('/tickets')->with('success', 'Support request submitted! Our team will reply shortly.');
@@ -72,26 +68,35 @@ class TicketController extends Controller
     public function index()
     {
         $tickets = auth()->user()->tickets()->latest()->get();
-        
+
         if (request()->has('ajax')) {
             return view('tickets.index', ['tickets' => $tickets])->render();
         }
-        
+
         return view('tickets.index', ['tickets' => $tickets]);
     }
 
     public function show($id)
     {
         $ticket = Ticket::with('messages')->findOrFail($id);
-        
-        if (auth()->check() && !auth()->user()->is_admin && $ticket->user_id !== auth()->id()) {
+
+        // Admins should always use the admin ticket view
+        if (auth()->check() && auth()->user()->is_admin) {
+            $params = ['id' => $id];
+            if (request()->has('ajax')) {
+                $params['ajax'] = 1;
+            }
+            return redirect()->route('admin.show', $params);
+        }
+
+        if (auth()->check() && $ticket->user_id !== auth()->id()) {
             abort(403);
         }
-        
+
         if (request()->has('ajax')) {
             return view('tickets.show-content', ['ticket' => $ticket])->render();
         }
-        
+
         return view('tickets.show', ['ticket' => $ticket]);
     }
 
@@ -99,7 +104,7 @@ class TicketController extends Controller
     {
         try {
             $ticket = Ticket::findOrFail($id);
-            
+
             if ($ticket->user_id !== auth()->id()) {
                 return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
             }
@@ -109,7 +114,7 @@ class TicketController extends Controller
             ]);
 
             // Create customer message
-            $message = Message::create([
+            Message::create([
                 'ticket_id' => $ticket->id,
                 'created_by' => auth()->id(),
                 'content' => $validated['content'],
@@ -118,15 +123,10 @@ class TicketController extends Controller
                 'sender_type' => 'customer',
             ]);
 
-            // Auto-generate AI response to customer's reply (NO greeting)
+            // AI replies to the customer's message WITH full conversation memory
             try {
                 $groq = new GroqService();
-                $aiReply = $groq->generateReply(
-                    $ticket->title,
-                    $validated['content'],
-                    auth()->user()->name,
-                    $ticket->id  // Pass ticket ID - will NOT add greeting
-                );
+                $aiReply = $groq->replyToTicket($ticket->fresh());
 
                 Message::create([
                     'ticket_id' => $ticket->id,
@@ -137,7 +137,7 @@ class TicketController extends Controller
                     'sender_type' => 'ai',
                 ]);
             } catch (\Exception $e) {
-                // AI failed silently
+                Log::error('AI reply failed on customer reply: ' . $e->getMessage());
             }
 
             // Notify all admins that customer replied
@@ -147,11 +147,11 @@ class TicketController extends Controller
                     $admin->notify(new \App\Notifications\TicketRepliedNotification($ticket));
                 }
             } catch (\Exception $e) {
-                // Notification failed silently
+                Log::error('Admin reply notification failed: ' . $e->getMessage());
             }
 
             return response()->json(['success' => true, 'message' => 'Reply sent']);
-            
+
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }

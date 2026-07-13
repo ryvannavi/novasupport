@@ -58,8 +58,73 @@ Route::middleware('auth')->group(function () {
 
     // Check for new notifications (Real-time polling)
     Route::get('/notifications/check', function () {
-        $unreadCount = auth()->user()->unreadNotifications->count();
-        return response()->json(['unread_count' => $unreadCount]);
+        $user = auth()->user();
+        $since = request('since');
+
+        $new = $since
+            ? $user->notifications()->where('created_at', '>', $since)->orderBy('created_at', 'desc')->get()
+            : collect();
+
+        return response()->json([
+            'unread_count' => $user->unreadNotifications->count(),
+            'server_time'  => now()->toDateTimeString(),
+            'new' => $new->map(function ($n) {
+                return [
+                    'id'      => $n->id,
+                    'message' => $n->data['message'] ?? 'New notification',
+                    'type'    => $n->data['type'] ?? 'info',
+                    'url'     => $n->data['url'] ?? '#',
+                    'time'    => $n->created_at->diffForHumans(),
+                ];
+            })->values(),
+        ]);
+    });
+
+    // Live chat polling for ticket conversation pages
+    Route::get('/tickets/{id}/messages/poll', function ($id) {
+        $user = auth()->user();
+        $ticket = \App\Models\Ticket::findOrFail($id);
+
+        if (!$user->is_admin && $ticket->user_id !== $user->id) {
+            abort(403);
+        }
+
+        $since = request('since');
+
+        if (!$since) {
+            return response()->json([
+                'server_time' => now()->toDateTimeString(),
+                'messages'    => [],
+            ]);
+        }
+
+        $messages = $ticket->messages()
+            ->where('updated_at', '>', $since)
+            ->orderBy('created_at')
+            ->get()
+            ->filter(function ($m) use ($user) {
+                // Skip the viewer's own manually typed messages (already on their screen)
+                if (!$m->is_ai_generated && $m->created_by === $user->id) return false;
+                // Customers only see customer messages + approved team replies
+                if (!$user->is_admin) return $m->sender_type === 'customer' || $m->approved;
+                return true;
+            })
+            ->values();
+
+        return response()->json([
+            'server_time' => now()->toDateTimeString(),
+            'messages' => $messages->map(function ($m) use ($ticket) {
+                return [
+                    'id'          => $m->id,
+                    'content'     => $m->content,
+                    'sender_type' => $m->sender_type,
+                    'is_ai'       => (bool) $m->is_ai_generated,
+                    'approved'    => (bool) $m->approved,
+                    'time'        => $m->created_at->format('H:i'),
+                    'sender_name' => $ticket->user->name,
+                ];
+            }),
+        ]);
     });
 });
 

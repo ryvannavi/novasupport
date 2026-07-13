@@ -342,5 +342,6 @@
 
         function attachAjaxListeners() { initListeners(); }
     </script>
+    @include('layouts.partials.realtime')
 </body>
 </html>
