@@ -54,8 +54,8 @@
         /* ============ RESPONSIVE (mobile / tablet) ============ */
         .nova-burger { display:none; width:38px; height:38px; border-radius:99px; border:1px solid #e2e8f0; background:rgba(255,255,255,0.9); color:#334155; font-size:15px; cursor:pointer; align-items:center; justify-content:center; transition:all 0.2s; flex-shrink:0; }
         .nova-burger:hover { border-color:#6366f1; color:#6366f1; }
-        .nova-mobile-menu { display:block; overflow:hidden; max-height:0; opacity:0; transform:translateY(-10px); margin-top:0; padding:0 8px; background:rgba(255,255,255,0.96); backdrop-filter:blur(16px); border:1px solid transparent; border-radius:20px; box-shadow:0 12px 40px rgba(99,102,241,0); transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease, transform 0.4s cubic-bezier(0.34,1.4,0.64,1), margin-top 0.3s ease, padding 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease; }
-        .nova-mobile-menu.open { max-height:560px; opacity:1; transform:translateY(0); margin-top:10px; padding:8px; border-color:rgba(220,220,255,0.7); box-shadow:0 12px 40px rgba(99,102,241,0.12); }
+        .nova-mobile-menu { position:absolute; left:0; right:0; top:calc(100% + 10px); z-index:60; background:#ffffff; border:1px solid rgba(220,220,255,0.8); border-radius:20px; box-shadow:0 16px 48px rgba(30,27,75,0.18); padding:8px; opacity:0; transform:translateY(-12px) scale(0.98); transform-origin:top center; pointer-events:none; visibility:hidden; transition:opacity 0.22s ease, transform 0.28s cubic-bezier(0.34,1.3,0.64,1), visibility 0.28s; will-change:transform, opacity; }
+        .nova-mobile-menu.open { opacity:1; transform:translateY(0) scale(1); pointer-events:auto; visibility:visible; }
         .nova-mobile-link { display:flex; align-items:center; gap:10px; padding:13px 16px; font-size:14px; color:#334155; text-decoration:none; border-radius:14px; font-weight:500; background:none; border:none; width:100%; text-align:left; cursor:pointer; font-family:inherit; }
         .nova-mobile-link:active, .nova-mobile-link:hover { background:#f5f3ff; color:#6366f1; }
         .nova-mobile-link i { width:18px; text-align:center; color:#6366f1; font-size:13px; }
@@ -70,9 +70,12 @@
         @media (max-width: 640px) {
             .nova-nav-right .btn-nova { display:none; }        /* CTA moves into mobile menu */
             .nova-nav-right form { display:none !important; }  /* Log out moves into mobile menu */
-            .nova-nav-pill { padding:8px 12px; }
+            .nova-nav-pill { padding:8px 12px; backdrop-filter:none; background:rgba(255,255,255,0.97); }
             .nova-logo { font-size:16px; }
             #notifDropdown { position:fixed !important; top:70px !important; left:12px !important; right:12px !important; width:auto !important; }
+            /* Big blurs are expensive on phone GPUs — lighter versions keep the vibe but scroll smooth */
+            .blob { filter:blur(38px); opacity:0.8; }
+            .blob3 { display:none; }
         }
 
         /* Stack ALL inline grids on small screens (works with inline styles via !important) */
@@ -100,7 +103,7 @@
 
     {{-- NAVBAR --}}
     <div style="padding:14px 24px; position:relative; z-index:50; animation:navSlideDown 0.6s ease both;">
-        <div style="max-width:1200px; margin:0 auto;">
+        <div style="max-width:1200px; margin:0 auto; position:relative;">
             <div class="nova-nav-pill">
                 <a href="{{ url('/') }}" class="nova-logo ajax-nav-link" data-url="/">
                     Nova<span>Support</span>
