@@ -3,28 +3,23 @@
 (function () {
     // ==========================================================
     // SHARED: audio ping
+    // Eager init + pending queue: the FIRST notification pings too.
+    // (Browsers block sound until the user has interacted once with
+    // the page — if a ping is blocked, we replay it on next click.)
     // ==========================================================
     let audioCtx = null;
+    let pendingPings = 0;
 
-    function initAudio() {
+    function ensureCtx() {
         if (!audioCtx) {
             try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
         }
-        if (audioCtx && audioCtx.state === 'suspended') {
-            audioCtx.resume().catch(function () {});
-        }
-        ['click', 'keydown', 'scroll', 'touchstart'].forEach(function (ev) {
-            document.removeEventListener(ev, initAudio);
-        });
+        return audioCtx;
     }
-    ['click', 'keydown', 'scroll', 'touchstart'].forEach(function (ev) {
-        document.addEventListener(ev, initAudio);
-    });
+    ensureCtx(); // create immediately on page load
 
-    function playPing() {
-        if (!audioCtx) return;
+    function tone() {
         try {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
             const o = audioCtx.createOscillator();
             const g = audioCtx.createGain();
             o.connect(g); g.connect(audioCtx.destination);
@@ -36,6 +31,29 @@
             o.start(); o.stop(audioCtx.currentTime + 0.5);
         } catch (e) {}
     }
+
+    function playPing() {
+        const ctx = ensureCtx();
+        if (!ctx) return;
+        if (ctx.state === 'running') { tone(); return; }
+        // Sound still locked by the browser: remember this ping,
+        // try to resume, and play as soon as we're allowed.
+        pendingPings++;
+        ctx.resume().then(function () {
+            if (ctx.state === 'running' && pendingPings > 0) { tone(); pendingPings = 0; }
+        }).catch(function () {});
+    }
+
+    function unlockAudio() {
+        const ctx = ensureCtx();
+        if (!ctx) return;
+        ctx.resume().then(function () {
+            if (ctx.state === 'running' && pendingPings > 0) { tone(); pendingPings = 0; }
+        }).catch(function () {});
+    }
+    ['click', 'keydown', 'scroll', 'touchstart'].forEach(function (ev) {
+        document.addEventListener(ev, unlockAudio, { passive: true });
+    });
 
     const IS_ADMIN = {{ auth()->user()->is_admin ? 'true' : 'false' }};
     const CSRF = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : '';
