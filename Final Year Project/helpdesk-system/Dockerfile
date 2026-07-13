@@ -1,4 +1,4 @@
-FROM php:8.3-cli
+FROM php:8.4-cli
 
 RUN apt-get update && apt-get install -y \
     curl zip unzip git \
@@ -15,8 +15,9 @@ COPY . .
 
 RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
 RUN npm install && npm run build
-RUN touch database/database.sqlite
+RUN cp .env.example .env
 RUN php artisan key:generate --force
+RUN touch database/database.sqlite
 RUN php artisan migrate --force
 RUN php artisan config:clear
 
