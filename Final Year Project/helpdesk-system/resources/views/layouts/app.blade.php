@@ -61,7 +61,7 @@
         .nova-mobile-link i { width:18px; text-align:center; color:#6366f1; font-size:13px; }
         .nova-mobile-cta { display:flex; align-items:center; justify-content:center; gap:8px; margin:8px; padding:13px; border-radius:14px; background:#1e1b4b; color:#fff; font-size:14px; font-weight:600; text-decoration:none; }
 
-        @media (max-width: 920px) {
+        @media (max-width: 767px) {
             .nova-nav-links { display:none; }
             .nova-user { display:none; }
             .nova-burger { display:inline-flex; }

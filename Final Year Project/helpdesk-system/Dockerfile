@@ -7,7 +7,15 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libpq-dev \
     nodejs npm \
-    && docker-php-ext-install pdo pdo_sqlite pdo_pgsql mbstring xml
+    && docker-php-ext-install pdo pdo_sqlite pdo_pgsql mbstring xml opcache
+
+RUN { \
+    echo "opcache.enable=1"; \
+    echo "opcache.enable_cli=1"; \
+    echo "opcache.memory_consumption=128"; \
+    echo "opcache.max_accelerated_files=10000"; \
+    echo "opcache.validate_timestamps=0"; \
+    } > /usr/local/etc/php/conf.d/opcache.ini
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
@@ -21,4 +29,4 @@ RUN php artisan key:generate --force
 RUN php artisan config:clear
 
 EXPOSE 8080
-CMD ["sh", "-c", "printenv | grep -E '^(APP_|DB_|GROQ_|LOG_|SESSION_|CACHE_|QUEUE_|MAIL_)' > .env; (php artisan migrate --force &); php artisan serve --host=0.0.0.0 --port=8080"]
+CMD ["sh", "-c", "printenv | grep -E '^(APP_|DB_|GROQ_|LOG_|SESSION_|CACHE_|QUEUE_|MAIL_)' > .env; php artisan config:cache; php artisan view:cache; php artisan route:cache || true; (php artisan migrate --force &); php artisan serve --host=0.0.0.0 --port=8080"]
